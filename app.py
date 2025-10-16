@@ -20,7 +20,7 @@ def get_db():
 def close_connection(exception):
 
     db = getattr(g, '_database', None)
-
+    
     if db is not None:
         db.close()
 
@@ -98,4 +98,4 @@ def get_comments():
     return jsonify(safe_comments)
 
 if __name__ == 'main':
-    app.run(debug=True, host= '0.0.0.0', port=5000)
+    app.run(debug=False, host= '127.0.0.1', port=5000)
