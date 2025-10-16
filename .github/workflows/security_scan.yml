@@ -1,0 +1,46 @@
+name: DevSecOps - Security Scan on PR
+
+on:
+    pull_request:
+        branches: ["main"]
+
+
+jobs:
+    sast_scan:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v4
+              with:
+                fetch-depth: 0
+
+            - name: Set up Python
+              uses: actions/setup-python@v5
+              with:
+                python-version: 3.11
+                cache: 'pip'
+            
+            # Instala las dependencias necesarias
+
+            - name: Install dependencies (including Bandit)
+              run: |
+                python -m pip install --upgrade pip
+                pip install -r requirements.txt
+            
+            # Ejecuta el escaneo de seguridad estático
+            - name: Run Bandit SAST Scan
+              run: |
+                # Escanea recursivamente el directorio, generando el reporte
+                # || True permite que la ejecución continúe incluso si encuentra problemas.
+                bandit -r . -x ./venv -o bandit_report.json || true
+
+            # Sube el reporte como artefacto
+            - name: Upload Bandit Report Artifact
+              uses: actions/upload-artifact@v4
+              with:
+                name: bandit-sast-report
+                path: bandit_report.json
+
+            - name: Security Check Summary
+              run: echo "SAST Scan Complete. Review the uploaded artifact for details."
+            

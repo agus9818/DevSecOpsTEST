@@ -2,6 +2,8 @@ import sqlite3
 from flask import Flask, request, jsonify, g
 import html
 
+# FUncionalidad de microservicio para manejo de comentarios
+
 
 # --- Configuración y conexión a DB
 app = Flask(__name__)
