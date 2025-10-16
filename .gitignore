@@ -1,0 +1,13 @@
+# Archivos de Entorno de Python
+venv/
+__pycache__/
+*.pyc
+
+# Archivos de Base de Datos
+*.db
+*.sqlite
+seguro.db
+database.db
+
+# Archivos de Configuración Local de IDE
+.vscode/
