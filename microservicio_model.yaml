@@ -1,0 +1,41 @@
+threagile_version: 1.0.0
+title: "Microservicio de Comentarios Seguro"
+date: 2025-10-16
+author: Agustín Lizarraga
+contributors: []
+
+# Arquitectura
+business_criticality: high
+management_summary_international: "Modelos de amenazas para el microservicio web"
+
+technical_assets:
+  microservicio_web:
+    type: web_service
+    usage: business
+    size: small
+    technology: python_flask
+    communication_links: 
+      a_la_db:
+        target: base_de_datos
+        usage: business
+        protocol: sqlite
+        data_asset: comentarios
+        authentication: true
+        authorization: true
+  
+  # Base de datos Local
+  base_de_datos:
+    type: datastore
+    usage: business
+    size: tiny
+    technology: sqlite
+    data_assets_contained:
+      - comentarios
+    
+  data_assets: 
+    comentarios:
+      usage: business_relevant
+      quantification: medium
+      is_sensitive: true
+      is_used_for_authentication: false
+      justification: "Los comentarios pueden contener información de clientes"
