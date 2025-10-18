@@ -55,6 +55,10 @@ def escape_html(text):
         return html.escape(text)
     return text
 
+@app.route('/')
+def index():
+    return "OK", 200
+
 # --- Endpoint 1: Agregar comentario (POST)
 @app.route('/api/comment', methods=['POST'])
 def add_comment():
@@ -104,5 +108,5 @@ def get_comments():
 
     return jsonify(safe_comments)
 
-if __name__ == '__main__':
-    app.run(debug=False, host='0.0.0.0', port=5000)
+if __name__ == 'main':
+    app.run(debug=False, host= '127.0.0.1', port=5000)
