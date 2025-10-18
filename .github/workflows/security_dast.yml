@@ -18,8 +18,7 @@ jobs:
           context: .
           push: false # Solo construir, no subir a Docker Hub
           tags: flask-app-test:latest
-          cache-from:  type=local,scope=build
-          cache-to:    type=local,scope:build,mode=max
+          no-cache: true
       # 2. Levantar el Contenedor de la Aplicación en Background
       - name: Start Flask App Container
         run: |
