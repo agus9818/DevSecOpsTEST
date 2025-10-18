@@ -8,7 +8,7 @@ import html
 
 # --- Configuración y conexión a DB
 app = Flask(__name__)
-Talisman(app)
+Talisman(app, force_https=False)  # Configuración básica de seguridad HTTP
 DATABASE = 'database.db'
 
 def get_db():
