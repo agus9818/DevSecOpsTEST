@@ -22,10 +22,9 @@ jobs:
       # 2. Levantar el Contenedor de la Aplicación en Background
       - name: Start Flask App Container
         run: |
-          # Levantar el contenedor en background y mapear el puerto 5000
           docker run -d --rm --name flask-app-container -p 5000:5000 flask-app-test:latest
-          echo "Waiting 10 seconds for app to start..."
-          sleep 10
+          echo "Waiting 15 seconds for app to start..."
+          sleep 15 # Aumentar a 15 segundos para máxima fiabilidad
 
       # 3. Ejecutar el Escaneo DAST con OWASP ZAP
       - name: ZAP Scan (DAST)
