@@ -25,11 +25,16 @@ jobs:
           docker run --rm flask-app-test:latest ls -la /app/
       # 2. Levantar el Contenedor de la Aplicación en Background
       - name: Start Flask App Container
+        id: start_app
         run: |
           docker stop flask-app-container || true
           docker run -d --rm --name flask-app-container -p 5000:5000 flask-app-test:latest
-          echo "Waiting 15 seconds for app to start..."
-          sleep 15 # Aumentar a 15 segundos para máxima fiabilidad
+
+      # Health Check: Espera a que la aplicación responda antes de escanear
+      - name: Wait for Application to be Ready
+        run: |
+          echo "Waiting for application to be ready..."
+          timeout 30s bash -c 'until curl -s http://localhost:5000/ > /dev/null; do echo "Waiting for app..."; sleep 2; done'
 
       # 3. Ejecutar el Escaneo DAST con OWASP ZAP
       - name: ZAP Scan (DAST)
@@ -38,8 +43,9 @@ jobs:
           # El objetivo es localhost:5000 porque el puerto fue mapeado
           target: 'http://localhost:5000' 
           docker_name: 'ghcr.io/zaproxy/zaproxy:stable' 
-          fail_action: true
-          exclude_rules_file: '.zap_exlude_rules.tsv'
+          fail_action: true # Falla el pipeline si se encuentran vulnerabilidades
+          # Corregido error tipográfico: exlude -> exclude
+          exclude_rules_file: '.zap_exclude_rules.tsv'
           allow_issue_writing: false
 
       # 4. Detener el Contenedor (Limpieza)

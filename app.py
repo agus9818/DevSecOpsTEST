@@ -10,17 +10,27 @@ import html
 app = Flask(__name__)
 csp = {
     'default-src': '\'self\'',
-    'script-src': '\'self\'',
-    'style-src': '\'self\''
+    'script-src': "'self'",
+    'style-src': "'self'",
+    'object-src': "'none'", # Deshabilita plugins como Flash
+    'base-uri': "'none'", # Previene ataques de "base tag hijacking"
 }
-Talisman(app, force_https=False, content_security_policy=csp, frame_options='DENY', content_type_nosniff=True)  # Configuración de seguridad HTTP
+Talisman(
+    app,
+    force_https=False, # Necesario para pruebas locales/CI sin SSL
+    content_security_policy=csp,
+    frame_options='DENY',
+    content_type_nosniff=True,
+    session_cookie_secure=False, # En producción debería ser True
+    session_cookie_http_only=True
+)
 DATABASE = 'database.db'
 
 def get_db():
-
     db = getattr(g, '_database', None)
     if db is None:
         db = g._database = sqlite3.connect(DATABASE)
+        db.row_factory = sqlite3.Row # Permite acceder a las columnas por nombre
     return db
 
 @app.teardown_appcontext
@@ -92,7 +102,7 @@ def get_comments():
     # Mitigación de XSS mediante sanitización de salida
 
     db = get_db()
-    cursor = db.cursor()
+    cursor = db.cursor() # El row_factory ya está configurado en la conexión
     cursor.execute ("SELECT id, username, comment FROM comments ORDER BY id DESC")
 
     raw_comments = cursor.fetchall()
@@ -101,9 +111,9 @@ def get_comments():
     # Se aplica el esacpae antes de la salida al cliente
     for row in raw_comments:
         safe_comments.append({
-            "id": row['id'],
-            "username": escape_html(row['username']),
-            "comment": escape_html(row['comment'])
+            "id": row["id"],
+            "username": escape_html(row["username"]),
+            "comment": escape_html(row["comment"])
         })
 
     return jsonify(safe_comments)
