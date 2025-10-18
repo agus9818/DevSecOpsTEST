@@ -16,4 +16,4 @@ EXPOSE 5000
 
 # Comando para ejecutar la aplicación
 # Usamos 0.0.0.0 aquí porque está dentro de un entorno Docker aislado.
-CMD ["python", "app.py", "--host", "0.0.0.0"]
+CMD ["python", "-m", "flask", "run", "--host", "0.0.0.0"]
