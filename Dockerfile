@@ -18,4 +18,4 @@ EXPOSE 5000
 ENTRYPOINT ["python", "-m", "flask"]
 # Comando para ejecutar la aplicación
 # Usamos 0.0.0.0 aquí porque está dentro de un entorno Docker aislado.
-CMD ["python", "-m", "flask", "run", "--host", "127.0.0.1"]
+CMD ["python", "app.py"]

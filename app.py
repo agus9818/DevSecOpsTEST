@@ -108,5 +108,5 @@ def get_comments():
 
     return jsonify(safe_comments)
 
-if __name__ == 'main':
-    app.run(debug=False, host= '127.0.0.1', port=5000)
+if __name__ == '__main__':
+    app.run(debug=False, host= '0.0.0.0', port=5000)
