@@ -11,14 +11,18 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Debug Context Files
+        run: ls -la
+
       # 1. Construir la Imagen de la Aplicación Flask
       - name: Build Flask App Image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: false # Solo construir, no subir a Docker Hub
-          tags: flask-app-test:latest
-          no-cache: true
+        run: |
+          docker build --no-cache -t flask-app-test:latest .
+
+      - name: Debug Docker Images
+        run: |
+          echo "Verificando que app.py fue copiado..."
+          docker run --rm flask-app-test:latest ls -la /app/
       # 2. Levantar el Contenedor de la Aplicación en Background
       - name: Start Flask App Container
         run: |

@@ -1,5 +1,5 @@
 # Usa una imagen base oficial de Python
-FROM python:3.11-slim
+FROM python:3.14
 
 # Establece el directorio de trabajo dentro del contenedor
 WORKDIR /app
@@ -8,6 +8,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# COPIAR SOLO EL CÓDIGO NECESARIO
 # Copia tu aplicación Flask
 COPY app.py .
 
