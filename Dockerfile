@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copia el código de la aplicación y establece la propiedad al nuevo usuario
 COPY app.py .
-RUN chown -R appuser:appuser /app
+RUN touch /app/database.db && chown -R appuser:appuser /app
 
 # Cambia al usuario sin privilegios
 USER appuser
