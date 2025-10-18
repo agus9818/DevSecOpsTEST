@@ -1,5 +1,6 @@
 import sqlite3
 from flask import Flask, request, jsonify, g
+from flask_talisman import Talisman
 import html
 
 # FUncionalidad de microservicio para manejo de comentarios
@@ -7,6 +8,7 @@ import html
 
 # --- Configuración y conexión a DB
 app = Flask(__name__)
+Talisman(app)
 DATABASE = 'database.db'
 
 def get_db():
