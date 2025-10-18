@@ -14,10 +14,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copia el código de la aplicación y establece la propiedad al nuevo usuario
 COPY app.py .
-RUN touch /app/database.db && chown -R appuser:appuser /app
+RUN chown -R appuser:appuser /app
 
 # Cambia al usuario sin privilegios
 USER appuser
+
+ENV FLASK_APP=app.py
+RUN flask init-db
 
 # Expone el puerto (documentación)
 EXPOSE 5000

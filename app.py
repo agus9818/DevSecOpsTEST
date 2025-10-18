@@ -55,8 +55,12 @@ def init_db():
         ''')
         db.commit()
 
-with app.app_context():
+# Registra el comando 'init-db' con la aplicación Flask
+@app.cli.command('init-db')
+def init_db_command():
+    """Limpia los datos existentes y crea nuevas tablas."""
     init_db()
+    print('Base de datos inicializada.')
 
 # --- Sanitización de salida (Mitigación de XSS)
 def escape_html(text):
