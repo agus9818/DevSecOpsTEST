@@ -8,7 +8,12 @@ import html
 
 # --- Configuración y conexión a DB
 app = Flask(__name__)
-Talisman(app, force_https=False)  # Configuración básica de seguridad HTTP
+csp = {
+    'default-src': '\'self\'',
+    'script-src': '\'self\'',
+    'style-src': '\'self\''
+}
+Talisman(app, force_https=False, content_security_policy=csp, frame_options='DENY', content_type_nosniff=True)  # Configuración de seguridad HTTP
 DATABASE = 'database.db'
 
 def get_db():
