@@ -12,15 +12,18 @@ RUN useradd --create-home appuser
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia el código de la aplicación y establece la propiedad al nuevo usuario
+# Copia el código de la aplicación
 COPY app.py .
+
+# Inicializa la base de datos como root para tener permisos de escritura
+ENV FLASK_APP=app.py
+RUN flask init-db
+
+# Copia el código de la aplicación y establece la propiedad al nuevo usuario
 RUN chown -R appuser:appuser /app
 
 # Cambia al usuario sin privilegios
 USER appuser
-
-ENV FLASK_APP=app.py
-RUN flask init_db
 
 # Expone el puerto (documentación)
 EXPOSE 5000
