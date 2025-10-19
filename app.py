@@ -20,7 +20,7 @@ Talisman(
     force_https=False, # Necesario para pruebas locales/CI sin SSL
     content_security_policy=csp,
     frame_options='DENY',
-    content_type_nosniff=True,
+    #content_type_nosniff=True,
     session_cookie_secure=False, # En producción debería ser True
     session_cookie_http_only=True
 )
