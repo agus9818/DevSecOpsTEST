@@ -21,12 +21,8 @@ Talisman(
     force_https=False, # Necesario para pruebas locales/CI sin SSL
     content_security_policy=csp,
     frame_options='DENY',
-    session_cookie_secure=False, # En producción debería ser True
-    session_cookie_http_only=True,
-    server_name=None, # Solución para [WARN-NEW: 10036] - Elimina el header "Server"
-    # Solución para [WARN-NEW: 90004] - Aislamiento contra Spectre
-    cross_origin_opener_policy='same-origin',
-    cross_origin_embedder_policy='require-corp'
+    session_cookie_secure=False, # En producción debería ser True,
+    session_cookie_http_only=True
 )
 DATABASE = 'database.db'
 
@@ -37,9 +33,15 @@ def get_db():
         db.row_factory = sqlite3.Row # Permite acceder a las columnas por nombre
     return db
 
-# Solución para [WARN-NEW: 10049] - Añade cabeceras anti-caché a las respuestas
+# Solución para las advertencias de ZAP:
+# - [WARN-NEW: 10036] Elimina el header "Server"
+# - [WARN-NEW: 90004] Añade aislamiento contra Spectre
+# - [WARN-NEW: 10049] Añade cabeceras anti-caché a las respuestas de la API
 @app.after_request
 def add_security_headers(response):
+    response.headers.pop('Server', None)
+    response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+    response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
     if '/api/' in request.path:
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         response.headers['Pragma'] = 'no-cache'
