@@ -14,6 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copia el código de la aplicación
 COPY app.py .
+COPY openapi.yaml .
 
 # Inicializa la base de datos como root para tener permisos de escritura
 ENV FLASK_APP=app.py

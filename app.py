@@ -1,5 +1,5 @@
 import sqlite3
-from flask import Flask, request, jsonify, g
+from flask import Flask, request, jsonify, g, send_from_directory
 from flask_talisman import Talisman
 import html
 
@@ -14,15 +14,19 @@ csp = {
     'style-src': "'self'",
     'object-src': "'none'", # Deshabilita plugins como Flash
     'base-uri': "'none'", # Previene ataques de "base tag hijacking"
+    'form-action': "'none'", # Solución para [WARN-NEW: 10055]
 }
 Talisman(
     app,
     force_https=False, # Necesario para pruebas locales/CI sin SSL
     content_security_policy=csp,
     frame_options='DENY',
-    #content_type_nosniff=True,
     session_cookie_secure=False, # En producción debería ser True
-    session_cookie_http_only=True
+    session_cookie_http_only=True,
+    server_name=None, # Solución para [WARN-NEW: 10036] - Elimina el header "Server"
+    # Solución para [WARN-NEW: 90004] - Aislamiento contra Spectre
+    cross_origin_opener_policy='same-origin',
+    cross_origin_embedder_policy='require-corp'
 )
 DATABASE = 'database.db'
 
@@ -32,6 +36,15 @@ def get_db():
         db = g._database = sqlite3.connect(DATABASE)
         db.row_factory = sqlite3.Row # Permite acceder a las columnas por nombre
     return db
+
+# Solución para [WARN-NEW: 10049] - Añade cabeceras anti-caché a las respuestas
+@app.after_request
+def add_security_headers(response):
+    if '/api/' in request.path:
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
 
 @app.teardown_appcontext
 def close_connection(exception):
@@ -72,6 +85,11 @@ def escape_html(text):
 @app.route('/')
 def index():
     return "OK", 200
+
+# --- Endpoint para servir la especificación OpenAPI
+@app.route('/openapi.yaml')
+def openapi_spec():
+    return send_from_directory('.', 'openapi.yaml')
 
 # --- Endpoint 1: Agregar comentario (POST)
 @app.route('/api/comment', methods=['POST'])
