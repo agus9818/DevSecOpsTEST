@@ -20,7 +20,7 @@ RUN chown -R appuser:appuser /app
 USER appuser
 
 ENV FLASK_APP=app.py
-RUN flask init-db
+RUN flask init_db
 
 # Expone el puerto (documentación)
 EXPOSE 5000
