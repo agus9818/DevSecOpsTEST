@@ -1,6 +1,6 @@
 import sqlite3
 from flask import Flask, request, jsonify, g
-from flask_talisman import Talisman
+from flask_talisman import Talisman, GOOGLE_CSP_POLICY
 import html
 import click
 
@@ -10,18 +10,24 @@ import click
 app = Flask(__name__)
 
 # Política de Seguridad de Contenido (CSP) más estricta para una API
-csp = {
-    'default-src': '\'self\'',  # Solo permite contenido del mismo origen
-    'object-src': '\'none\'',   # Prohíbe plugins como Flash
-    'frame-ancestors': '\'none\'' # Previene clickjacking
-}
+# Usamos una política base robusta y la personalizamos
+csp = GOOGLE_CSP_POLICY.copy()
+csp['object-src'] = '\'none\''
+csp['frame-ancestors'] = '\'none\''
 
 # Inicializa Talisman.
 # force_https=False es crucial para el entorno de CI/CD, donde no hay un proxy inverso
 # que gestione TLS. Sin esto, Talisman redirigiría HTTP a HTTPS, causando que el
 # escaneo de ZAP falle al no poder conectar con un servidor que no habla SSL/TLS.
 # Se añade la política CSP personalizada.
-Talisman(app, force_https=False, content_security_policy=csp)
+# Se añaden políticas de aislamiento para mitigar ataques como Spectre.
+Talisman(
+    app,
+    force_https=False,
+    content_security_policy=csp,
+    cross_origin_opener_policy='same-origin',
+    cross_origin_embedder_policy='require-corp'
+)
 
 # Middleware para añadir cabeceras de seguridad faltantes
 @app.after_request
@@ -76,6 +82,18 @@ def escape_html(text):
 @app.route('/', methods=['GET'])
 def index():
     return jsonify({"message": "API de comentarios está activa."}), 200
+
+# --- Endpoint para robots.txt - Evita 404 en escaneos
+@app.route('/robots.txt')
+def robots_txt():
+    # Instruye a todos los crawlers a no indexar el sitio
+    response = app.response_class("User-agent: *\nDisallow: /", mimetype="text/plain")
+    return response
+
+# --- Endpoint para sitemap.xml - Evita 404 en escaneos
+@app.route('/sitemap.xml')
+def sitemap_xml():
+    return jsonify({"error": "Not Found"}), 404
 
 # --- Endpoint 1: Agregar comentario (POST)
 @app.route('/api/comment', methods=['POST'])
