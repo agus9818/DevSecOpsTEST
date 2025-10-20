@@ -1,0 +1,38 @@
+name: Container Image Security Scan
+
+on:
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  container_scan:
+    name: Trivy Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image for scanning
+        # Se construye la imagen que será escaneada.
+        # Usamos -f Dockerfile para asegurar que se usa el archivo correcto.
+        run: docker build -f Dockerfile -t flask-app-scan:latest .
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+
+      - name: Run Trivy vulnerability scanner
+        run: |
+          trivy image --format table --exit-code 1 --ignore-unfixed --vuln-type os,library --severity CRITICAL,HIGH --output trivy-results.sarif flask-app-scan:latest
+
+      - name: Upload Trivy scan results
+        if: always() # Sube el reporte incluso si el paso anterior falla.
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-scan-report
+          path: trivy-results.sarif
