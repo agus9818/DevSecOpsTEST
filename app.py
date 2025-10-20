@@ -11,9 +11,11 @@ app = Flask(__name__)
 
 # Política de Seguridad de Contenido (CSP) más estricta para una API
 # Usamos una política base robusta y la personalizamos
-csp = GOOGLE_CSP_POLICY.copy()
-csp['object-src'] = '\'none\''
-csp['frame-ancestors'] = '\'none\''
+csp = {
+    #GOOGLE_CSP_POLICY.copy(),
+    'default-src': '\'self\'',
+    'object-src': '\'none\'',
+}
 
 # Inicializa Talisman.
 # force_https=False es crucial para el entorno de CI/CD, donde no hay un proxy inverso
@@ -23,9 +25,9 @@ csp['frame-ancestors'] = '\'none\''
 # Se añaden políticas de aislamiento para mitigar ataques como Spectre.
 Talisman(
     app,
-    force_https=False,
+    force_https=True,
     content_security_policy=csp,
-    cross_origin_opener_policy='same-origin',
+    #cross_origin_opener_policy='same-origin',
     cross_origin_embedder_policy='require-corp'
 )
 
