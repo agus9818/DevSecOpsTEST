@@ -20,24 +20,22 @@ csp['frame-ancestors'] = '\'none\''
 # que gestione TLS. Sin esto, Talisman redirigiría HTTP a HTTPS, causando que el
 # escaneo de ZAP falle al no poder conectar con un servidor que no habla SSL/TLS.
 # NOTA: Se ha cambiado force_https a False para alinearse con el entorno de CI.
-# Se añade la política CSP personalizada.
-# Se añaden políticas de aislamiento para mitigar ataques como Spectre.
+# Se centraliza toda la configuración de cabeceras en Talisman para evitar conflictos.
 Talisman(
     app,
     force_https=False,
     content_security_policy=csp,
-)
-
-# Middleware para añadir cabeceras de seguridad faltantes
-@app.after_request
-def add_extra_security_headers(response):
-    response.headers['Server'] = 'Microservicio Web' # Oculta información del servidor
-    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-    response.headers['Pragma'] = 'no-cache' # Compatibilidad con HTTP/1.0
+    force_https_permanent=False,
+    # Elimina la cabecera 'Server' de todas las respuestas.
+    server_name=None,
+    # Deshabilita el caché para todas las respuestas.
+    cache_policy='no-cache, no-store, must-revalidate',
     # Mitigación manual para Spectre (ya que Talisman 1.1.0 no lo soporta)
-    response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
-    response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
-    return response
+    extra_headers={
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'require-corp'
+    }
+)
 
 DATABASE = 'database.db'
 
