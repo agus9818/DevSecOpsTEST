@@ -10,10 +10,13 @@ jobs:
     permissions:
       issues: write    # Permiso para que la acción de ZAP pueda crear issues.
       contents: read   # Permiso para que la acción de checkout pueda leer el código.
+      pull-requests: read # Permiso para que Gitleaks pueda leer los commits del PR.
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetches all history. Required for Gitleaks to scan PRs correctly.
 
       # --- 1. SAST Scan (Bandit) ---
       - name: Set up Python for SAST
@@ -33,6 +36,25 @@ jobs:
         with:
           name: bandit-sast-report
           path: bandit_report.json
+
+      # --- 1.5. SAST Scan (Gitleaks) ---
+      - name: Run Gitleaks Scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          # Proporciona el token de GitHub como variable de entorno para que la acción pueda escanear Pull Requests.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Gitleaks fallará si encuentra algún secreto.
+          fail: true
+          # Genera un reporte en formato SARIF para la integración con GitHub.
+          report_format: sarif
+          report_path: gitleaks-report.sarif
+
+      - name: Upload Gitleaks Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-sast-report
+          path: gitleaks-report.sarif
 
       # --- 2. DAST Scan (ZAP) ---
       - name: Build Docker image
