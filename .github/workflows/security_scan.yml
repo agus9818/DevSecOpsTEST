@@ -7,6 +7,10 @@ on:
 jobs:
   security_pipeline:
     runs-on: ubuntu-latest
+    permissions:
+      issues: write    # Permiso para que la acción de ZAP pueda crear issues.
+      contents: read   # Permiso para que la acción de checkout pueda leer el código.
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
