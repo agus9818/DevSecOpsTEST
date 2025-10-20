@@ -8,11 +8,29 @@ import click
 
 # --- Configuración y conexión a DB
 app = Flask(__name__)
+
+# Política de Seguridad de Contenido (CSP) más estricta para una API
+csp = {
+    'default-src': '\'self\'',  # Solo permite contenido del mismo origen
+    'object-src': '\'none\'',   # Prohíbe plugins como Flash
+    'frame-ancestors': '\'none\'' # Previene clickjacking
+}
+
 # Inicializa Talisman.
 # force_https=False es crucial para el entorno de CI/CD, donde no hay un proxy inverso
 # que gestione TLS. Sin esto, Talisman redirigiría HTTP a HTTPS, causando que el
 # escaneo de ZAP falle al no poder conectar con un servidor que no habla SSL/TLS.
-Talisman(app, force_https=False)
+# Se añade la política CSP personalizada.
+Talisman(app, force_https=False, content_security_policy=csp)
+
+# Middleware para añadir cabeceras de seguridad faltantes
+@app.after_request
+def add_extra_security_headers(response):
+    response.headers['Server'] = 'Microservicio Web' # Oculta información del servidor
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache' # Compatibilidad con HTTP/1.0
+    return response
+
 DATABASE = 'database.db'
 
 def get_db():
@@ -53,6 +71,11 @@ def escape_html(text):
     if isinstance(text, str):
         return html.escape(text)
     return text
+
+# --- Endpoint 0: Raíz (GET) - Para satisfacer el health check de ZAP
+@app.route('/', methods=['GET'])
+def index():
+    return jsonify({"message": "API de comentarios está activa."}), 200
 
 # --- Endpoint 1: Agregar comentario (POST)
 @app.route('/api/comment', methods=['POST'])
