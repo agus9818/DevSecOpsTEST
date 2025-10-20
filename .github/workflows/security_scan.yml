@@ -56,6 +56,11 @@ jobs:
           name: gitleaks-sast-report
           path: gitleaks-report.sarif
 
+      # --- 1.7. Dependency Review (SCA) ---
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        # Esta acción fallará si el PR introduce una dependencia con una vulnerabilidad conocida.
+
       # --- 2. DAST Scan (ZAP) ---
       - name: Build Docker image
         run: docker build -f Dockerfile -t flask-app-dast .
