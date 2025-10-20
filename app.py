@@ -1,6 +1,7 @@
 import sqlite3
 from flask import Flask, request, jsonify, g
 import html
+import click
 
 # FUncionalidad de microservicio para manejo de comentarios
 
@@ -14,6 +15,8 @@ def get_db():
     db = getattr(g, '_database', None)
     if db is None:
         db = g._database = sqlite3.connect(DATABASE)
+        # Permite acceder a las columnas por nombre
+        db.row_factory = sqlite3.Row
     return db
 
 @app.teardown_appcontext
@@ -24,22 +27,20 @@ def close_connection(exception):
     if db is not None:
         db.close()
 
+@app.cli.command('init-db')
 def init_db():
-
-    with app.app_context():
-        db = get_db()
-        cursor = db.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS comments(
-                       id INTEGER PRIMARY KEY AUTOINCREMENT,
-                       username TEXT NOT NULL,
-                       comment TEXT NOT NULL
-            )
-        ''')
-        db.commit()
-
-with app.app_context():
-    init_db()
+    """Limpia los datos existentes y crea nuevas tablas."""
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS comments(
+                   id INTEGER PRIMARY KEY AUTOINCREMENT,
+                   username TEXT NOT NULL,
+                   comment TEXT NOT NULL
+        )
+    ''')
+    db.commit()
+    click.echo('Base de datos inicializada.')
 
 # --- Middleware para Cabeceras de Seguridad (Mitigación ZAP Scan)
 @app.after_request
