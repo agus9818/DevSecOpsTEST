@@ -95,7 +95,9 @@ def robots_txt():
 # --- Endpoint para sitemap.xml - Evita 404 en escaneos
 @app.route('/sitemap.xml')
 def sitemap_xml():
-    return jsonify({"error": "Not Found"}), 404
+    # Se crea una respuesta manual para asegurar que todas las cabeceras de seguridad
+    # del middleware @after_request se apliquen correctamente.
+    return app.response_class("Not Found", status=404, mimetype="text/plain")
 
 # --- Endpoint 1: Agregar comentario (POST)
 @app.route('/api/comment', methods=['POST'])
