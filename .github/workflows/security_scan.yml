@@ -10,6 +10,7 @@ jobs:
     permissions:
       issues: write    # Permiso para que la acción de ZAP pueda crear issues.
       contents: read   # Permiso para que la acción de checkout pueda leer el código.
+      pull-requests: read # Permiso para que Gitleaks pueda leer los commits del PR.
 
     steps:
       - name: Checkout Code
