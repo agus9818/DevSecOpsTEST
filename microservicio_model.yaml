@@ -1,41 +1,46 @@
 threagile_version: 1.0.0
+# Título del Modelo
 title: "Microservicio de Comentarios Seguro"
 date: 2025-10-16
-author: Agustín Lizarraga
+author: Agustin Lizarraga
 contributors: []
 
-# Arquitectura
-business_criticality: high
-management_summary_international: "Modelos de amenazas para el microservicio web"
+# Definición de la Arquitectura
+business_criticality: high # La criticidad del negocio es alta
+management_summary_international: "Modelo de amenazas para el microservicio web de manejo de comentarios."
 
 technical_assets:
+  # 1. Microservicio Web (Flask)
   microservicio_web:
-    type: web_service
-    usage: business
-    size: small
-    technology: python_flask
-    communication_links: 
+    type: web_service # Tipo de activo (Servicio Web)
+    usage: business # Su uso (Negocio)
+    size: small # Tamaño
+    technology: python_flask # Tecnología (Python/Flask)
+    communication_links:
+      # Conexión con la base de datos
       a_la_db:
-        target: base_de_datos
-        usage: business
-        protocol: sqlite
-        data_asset: comentarios
-        authentication: true
-        authorization: true
-  
-  # Base de datos Local
+        target: base_de_datos # El activo con el que se comunica
+        usage: business # Su uso
+        protocol: sqlite # Protocolo de comunicacion (SQLite)
+        data_asset: comentarios # El dato que maneja (ver abajo)
+        authentication: true # Hay autenticacion (si es necesario)
+        authorization: true # Hay autorizacion
+
+  # 2. Base de Datos Local (SQLite)
   base_de_datos:
-    type: datastore
-    usage: business
-    size: tiny
-    technology: sqlite
+    type: datastore # Tipo de activo (Almacenamiento de Datos)
+    usage: business # Su uso
+    size: tiny # Tamaño
+    technology: sqlite # Tecnología
+    # Datos sensibles dentro de la base de datos
     data_assets_contained:
       - comentarios
-    
-  data_assets: 
-    comentarios:
-      usage: business_relevant
-      quantification: medium
-      is_sensitive: true
-      is_used_for_authentication: false
-      justification: "Los comentarios pueden contener información de clientes"
+
+# Definición de los Datos
+data_assets:
+  comentarios:
+    usage: business_relevant # Datos relevantes para el negocio
+    quantification: medium # Cantidad media de datos
+    is_sensitive: true # Marcamos como sensible para obtener más riesgos
+    is_used_for_authentication: false
+    justification: "Los comentarios pueden contener información de clientes."
