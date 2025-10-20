@@ -8,7 +8,11 @@ import click
 
 # --- Configuración y conexión a DB
 app = Flask(__name__)
-Talisman(app) # Inicializa Talisman para agregar cabeceras de seguridad automáticamente
+# Inicializa Talisman.
+# force_https=False es crucial para el entorno de CI/CD, donde no hay un proxy inverso
+# que gestione TLS. Sin esto, Talisman redirigiría HTTP a HTTPS, causando que el
+# escaneo de ZAP falle al no poder conectar con un servidor que no habla SSL/TLS.
+Talisman(app, force_https=False)
 DATABASE = 'database.db'
 
 def get_db():
