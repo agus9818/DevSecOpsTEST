@@ -43,6 +43,8 @@ jobs:
           # Genera un reporte en formato SARIF para la integración con GitHub.
           report_format: sarif
           report_path: gitleaks-report.sarif
+          # Proporciona el token de GitHub para que la acción pueda escanear Pull Requests.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Gitleaks Report
         uses: actions/upload-artifact@v4
