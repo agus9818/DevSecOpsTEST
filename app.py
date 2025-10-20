@@ -26,8 +26,6 @@ Talisman(
     app,
     force_https=False,
     content_security_policy=csp,
-    cross_origin_opener_policy='same-origin',
-    cross_origin_embedder_policy='require-corp'
 )
 
 # Middleware para añadir cabeceras de seguridad faltantes
