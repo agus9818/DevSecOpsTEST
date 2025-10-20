@@ -74,6 +74,15 @@ def init_db():
     db.commit()
     click.echo('Base de datos inicializada.')
 
+# --- Manejador de errores para 404
+@app.errorhandler(404)
+def handle_404(e):
+    """
+    Asegura que todas las respuestas 404 (incluyendo sitemap.xml)
+    pasen por el middleware de seguridad.
+    """
+    return app.response_class("Not Found", status=404, mimetype="text/plain")
+
 # --- Sanitización de salida (Mitigación de XSS)
 def escape_html(text):
 
