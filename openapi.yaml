@@ -1,0 +1,30 @@
+openapi: 3.0.0
+info:
+  title: Comments API
+  version: 1.0.0
+paths:
+  /api/comments:
+    get:
+      summary: Get all comments
+      responses:
+        '200':
+          description: A list of comments.
+  /api/comment:
+    post:
+      summary: Add a new comment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: "testuser"
+                comment:
+                  type: string
+                  example: "This is a test comment."
+      responses:
+        '201':
+          description: Comment added successfully.
