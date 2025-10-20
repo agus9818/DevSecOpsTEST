@@ -9,6 +9,25 @@ import click
 # --- Configuración y conexión a DB
 app = Flask(__name__)
 
+# --- Middleware Personalizado para Cabeceras de Seguridad
+# Se crea una clase middleware para envolver la aplicación. Esto garantiza
+# que nuestras cabeceras se apliquen en el último paso, después de Flask y Talisman.
+class SecurityMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    def __call__(self, environ, start_response):
+        def custom_start_response(status, headers, exc_info=None):
+            # Elimina la cabecera 'Server' y añade las nuestras.
+            headers = [h for h in headers if h[0].lower() != 'server']
+            headers.append(('Cache-Control', 'no-cache, no-store, must-revalidate'))
+            headers.append(('Pragma', 'no-cache'))
+            headers.append(('Cross-Origin-Opener-Policy', 'same-origin'))
+            headers.append(('Cross-Origin-Embedder-Policy', 'require-corp'))
+            return start_response(status, headers, exc_info)
+
+        return self.app(environ, custom_start_response)
+
 # Política de Seguridad de Contenido (CSP) más estricta para una API
 # Usamos una política base robusta y la personalizamos
 csp = GOOGLE_CSP_POLICY.copy()
@@ -28,18 +47,8 @@ Talisman(
     force_https_permanent=False
 )
 
-# Middleware para añadir cabeceras de seguridad que Talisman 1.1.0 no soporta.
-@app.after_request
-def add_security_headers(response):
-    # Usamos .set() para garantizar que nuestros valores sobrescriban cualquier
-    # valor previo que Talisman (u otro middleware) haya podido establecer.
-    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
-    response.headers.set('Pragma', 'no-cache') # Para compatibilidad con HTTP/1.0
-    response.headers.set('Cross-Origin-Opener-Policy', 'same-origin')
-    response.headers.set('Cross-Origin-Embedder-Policy', 'require-corp')
-    response.headers.pop('Server', None) # .pop() es seguro y elimina la cabecera.
-    return response
-
+# Envuelve la aplicación con el middleware de seguridad.
+app.wsgi_app = SecurityMiddleware(app.wsgi_app)
 DATABASE = 'database.db'
 
 def get_db():
