@@ -1,13 +1,14 @@
 import sqlite3
 from flask import Flask, request, jsonify, g
+from flask_talisman import Talisman
 import html
 import click
 
 # FUncionalidad de microservicio para manejo de comentarios
 
-
 # --- Configuración y conexión a DB
 app = Flask(__name__)
+Talisman(app) # Inicializa Talisman para agregar cabeceras de seguridad automáticamente
 DATABASE = 'database.db'
 
 def get_db():
@@ -41,22 +42,6 @@ def init_db():
     ''')
     db.commit()
     click.echo('Base de datos inicializada.')
-
-# --- Middleware para Cabeceras de Seguridad (Mitigación ZAP Scan)
-@app.after_request
-def add_security_headers(response):
-    # Previene que el contenido sea renderizado en un frame/iframe (Clickjacking)
-    response.headers['X-Frame-Options'] = 'DENY'
-    # Previene que el navegador interprete archivos con un tipo MIME incorrecto (MIME Sniffing)
-    response.headers['X-Content-Type-Options'] = 'nosniff'
-    # Habilita el filtro XSS en navegadores compatibles
-    response.headers['X-XSS-Protection'] = '1; mode=block'
-    # Política de Seguridad de Contenido: Restringe de dónde se pueden cargar los recursos.
-    # Para una API, 'default-src \'self\'' es un buen punto de partida.
-    response.headers['Content-Security-Policy'] = "default-src 'self'"
-    # Oculta la información del servidor
-    response.headers['Server'] = 'Microservicio Web'
-    return response
 
 # --- Sanitización de salida (Mitigación de XSS)
 def escape_html(text):
@@ -118,4 +103,4 @@ def get_comments():
     return jsonify(safe_comments)
 
 if __name__ == '__main__':
-    app.run(debug=False, host= '127.0.0.1', port=5000)
+    app.run(debug=False, host= '0.0.0.0', port=5000)
