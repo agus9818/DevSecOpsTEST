@@ -29,11 +29,11 @@ jobs:
       - name: Run Trivy vulnerability scanner
         run: |
           # 1. Muestra los resultados en una tabla para una fácil lectura en los logs.
-          # Se usa el nuevo flag --pkg-types en lugar del obsoleto --vuln-type.
-          trivy image --format table --ignore-unfixed --pkg-types os,python-pkg --severity CRITICAL,HIGH flask-app-scan:latest
+          # Se usan los valores 'os,library' que son compatibles con la versión de Trivy instalada.
+          trivy image --format table --ignore-unfixed --vuln-type os,library --severity CRITICAL,HIGH flask-app-scan:latest
           # 2. Genera el reporte en formato SARIF para la integración con GitHub y como artefacto.
           # Aquí sí se usa --exit-code 1 para que el pipeline falle si se encuentran vulnerabilidades.
-          trivy image --format sarif --output trivy-results.sarif --ignore-unfixed --pkg-types os,python-pkg --severity CRITICAL,HIGH --exit-code 1 flask-app-scan:latest
+          trivy image --format sarif --output trivy-results.sarif --ignore-unfixed --vuln-type os,library --severity CRITICAL,HIGH --exit-code 1 flask-app-scan:latest
 
       - name: Upload Trivy scan results
         if: always() # Sube el reporte incluso si el paso anterior falla.
