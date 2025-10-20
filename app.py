@@ -18,12 +18,14 @@ class SecurityMiddleware:
 
     def __call__(self, environ, start_response):
         def custom_start_response(status, headers, exc_info=None):
-            # Elimina la cabecera 'Server' y añade las nuestras.
+            # Filtra las cabeceras no deseadas y añade las de seguridad.
+            # Esto garantiza que nuestros valores sean los finales.
             headers = [h for h in headers if h[0].lower() != 'server']
             headers.append(('Cache-Control', 'no-cache, no-store, must-revalidate'))
             headers.append(('Pragma', 'no-cache'))
             headers.append(('Cross-Origin-Opener-Policy', 'same-origin'))
             headers.append(('Cross-Origin-Embedder-Policy', 'require-corp'))
+            
             return start_response(status, headers, exc_info)
 
         return self.app(environ, custom_start_response)
