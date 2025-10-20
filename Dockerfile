@@ -17,15 +17,15 @@ RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r re
 COPY app.py .
 COPY openapi.yaml .
 
-# Inicializa la base de datos como root para tener permisos de escritura
-ENV FLASK_APP=app.py
-RUN flask init-db
-
 # Copia el código de la aplicación y establece la propiedad al nuevo usuario
 RUN chown -R appuser:appuser /app
 
 # Cambia al usuario sin privilegios
 USER appuser
+
+# Inicializa la base de datos como el usuario final de la aplicación
+ENV FLASK_APP=app.py
+RUN flask init-db
 
 # Expone el puerto (documentación)
 EXPOSE 5000

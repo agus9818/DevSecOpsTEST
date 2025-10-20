@@ -55,6 +55,15 @@ jobs:
           # Cambia el nivel mínimo de alerta que causa un fallo a 'High'.
           cmd_options: '-l FAIL'
 
+      - name: Upload ZAP DAST Report
+        if: always() # Asegura que el reporte se suba incluso si el escaneo falla
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-dast-report
+          path: |
+            report_html.html
+            report_md.md
+
       - name: Stop Docker container
         if: always()
         run: docker stop flask-app-container
