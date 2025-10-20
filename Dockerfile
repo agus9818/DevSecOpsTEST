@@ -1,6 +1,6 @@
 # 1. Usa una imagen base 'slim' y una versión de Python estable.
 # Esto reduce el tamaño de la imagen y la superficie de ataque.
-FROM python:3.12-slim
+FROM python:3.11-slim
 
 # Establece el directorio de trabajo dentro del contenedor
 WORKDIR /app
