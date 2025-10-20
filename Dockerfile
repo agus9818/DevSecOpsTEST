@@ -10,8 +10,8 @@ RUN useradd --create-home appuser
 
 # Copia los archivos de dependencia e instala
 COPY requirements.txt .
-# FORZAR REINSTALACIÓN: Usar --no-cache-dir, --ignore-installed, y --no-deps (si es necesario)
-RUN pip install --no-cache-dir -r requirements.txt --ignore-installed --upgrade
+# Se actualiza pip primero y luego se instalan las dependencias.
+RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 # Copia el código de la aplicación
 COPY app.py .
