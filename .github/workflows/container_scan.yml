@@ -8,6 +8,10 @@ jobs:
   container_scan:
     name: Trivy Vulnerability Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read # para checkout
+      security-events: write # para subir el reporte SARIF
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -41,3 +45,10 @@ jobs:
         with:
           name: trivy-scan-report
           path: trivy-results.sarif
+
+      - name: Upload Trivy scan results to GitHub Security
+        if: always() # Sube el reporte incluso si el paso anterior falla.
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: 'container'
