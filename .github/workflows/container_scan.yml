@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read # para checkout
+      actions: read # para que upload-sarif pueda leer metadatos del workflow
       security-events: write # para subir el reporte SARIF
 
     steps:
