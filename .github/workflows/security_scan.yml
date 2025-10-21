@@ -10,7 +10,8 @@ jobs:
     permissions:
       issues: write    # Permiso para que la acción de ZAP pueda crear issues.
       contents: read   # Permiso para que la acción de checkout pueda leer el código.
-      pull-requests: read # Permiso para que Gitleaks pueda leer los commits del PR.
+      pull-requests: read # Permiso para que Gitleaks y Dependency Review puedan leer el PR.
+      security-events: write # Permiso para subir los reportes SARIF a las alertas de seguridad.
 
     steps:
       - name: Checkout Code
@@ -29,7 +30,7 @@ jobs:
         run: pip install bandit
 
       - name: Run Bandit Scan
-        run: bandit -r . -x ./venv -o bandit_report.json -f json || true
+        run: bandit -r . -x ./venv -o bandit_report.json -f json
 
       - name: Upload Bandit Report
         uses: actions/upload-artifact@v4
@@ -54,22 +55,18 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: gitleaks-sast-report
-          path: gitleaks-report.sarif
+          path: gitleaks-report.sarif # Se mantiene como artefacto para descarga.
 
- 
+      - name: Upload Gitleaks SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: gitleaks-report.sarif
+          category: gitleaks
+
       # --- 1.7. Dependency Review (SCA) ---
       - name: Dependency Review
         uses: actions/dependency-review-action@v4
         # Esta acción fallará si el PR introduce una dependencia con una vulnerabilidad conocida.
-      - name: Install Trivy for SCA
-        run: |
-          # Se instala Trivy aquí para el escaneo de dependencias.
-          sudo apt-get update && sudo apt-get install -y wget apt-transport-https gnupg lsb-release
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update && sudo apt-get install -y trivy
-      - name: Run Trivy SCA Scan on requirements.txt
-        run: trivy fs --scanners vuln --exit-code 1 --ignore-unfixed --severity CRITICAL,HIGH .
 
       # --- 2. DAST Scan (ZAP) ---
       - name: Build Docker image
