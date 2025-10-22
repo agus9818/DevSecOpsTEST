@@ -31,7 +31,7 @@ jobs:
 
       - name: Run Bandit Scan
         id: bandit_scan
-        continue-on-error: true # Permite que el workflow continúe, pero marca el paso como fallido.
+        continue-on-error: true # Permite que el workflow continúe para que los reportes se suban.
         run: bandit -r . -x ./venv -o bandit_report.json -f json
 
       - name: Upload Bandit Report
@@ -44,7 +44,7 @@ jobs:
       - name: Run Gitleaks Scan
         uses: gitleaks/gitleaks-action@v2
         id: gitleaks_scan
-        continue-on-error: true # Permite que el workflow continúe si se encuentran secretos.
+        continue-on-error: true # Permite que el workflow continúe para que los reportes se suban.
         env:
           # Proporciona el token de GitHub como variable de entorno para que la acción pueda escanear Pull Requests.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -75,6 +75,14 @@ jobs:
         with:
           dockerfile: Dockerfile
           # Esta acción fallará si el Dockerfile no sigue las mejores prácticas.
+          ignore: DL3013 # Ignora la advertencia sobre no fijar versiones en pip, ya que usamos requirements.txt
+
+      # --- 1.8. Fail Job if SAST Scans Failed (for Issue Creation) ---
+      - name: Fail Job if Bandit or Gitleaks Found Issues
+        if: steps.bandit_scan.outcome == 'failure' || steps.gitleaks_scan.outcome == 'failure'
+        run: |
+          echo "Bandit o Gitleaks encontraron problemas. Fallando el job para activar la creación de un issue."
+          exit 1
 
       # --- 1.7. Dependency Review (SCA) ---
       - name: Dependency Review
