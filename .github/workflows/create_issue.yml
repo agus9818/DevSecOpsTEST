@@ -56,5 +56,6 @@ jobs:
               repo: context.repo.repo,
               title: `🚨 Alerta de Seguridad en PR #${prNumber}: Escaneo SAST fallido`,
               body: `${issueContent}\n- **Pull Request:** ${prUrl}\n- **Ejecución del Workflow:** ${runUrl}\n\nPor favor, revisa los artefactos y los logs del workflow para obtener más detalles y solucionar los problemas antes de fusionar.`,
-              labels: ['security', 'bug']
+              labels: ['security', 'bug'],
+              assignees: ['${{ github.event.workflow_run.actor.login }}']
             });
