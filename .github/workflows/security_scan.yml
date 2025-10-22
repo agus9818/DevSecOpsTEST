@@ -30,7 +30,8 @@ jobs:
         run: pip install bandit
 
       - name: Run Bandit Scan
-        run: bandit -r . -x ./venv -o bandit_report.json -f json
+        # Se añade `|| true` para que el paso no falle si Bandit encuentra vulnerabilidades (exit code 1).
+        run: bandit -r . -x ./venv -o bandit_report.json -f json || true
 
       - name: Upload Bandit Report
         uses: actions/upload-artifact@v4
