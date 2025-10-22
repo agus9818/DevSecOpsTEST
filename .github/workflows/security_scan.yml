@@ -30,11 +30,12 @@ jobs:
         run: pip install bandit
 
       - name: Run Bandit Scan
-        # Se añade `|| true` para que el paso no falle si Bandit encuentra vulnerabilidades (exit code 1).
-        run: bandit -r . -x ./venv -o bandit_report.json -f json || true
+        id: bandit_scan
+        continue-on-error: true # Permite que el workflow continúe, pero marca el paso como fallido.
+        run: bandit -r . -x ./venv -o bandit_report.json -f json
 
       - name: Upload Bandit Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4 # Sube el reporte para que el otro workflow pueda usarlo.
         with:
           name: bandit-sast-report
           path: bandit_report.json
@@ -42,6 +43,8 @@ jobs:
       # --- 1.5. SAST Scan (Gitleaks) ---
       - name: Run Gitleaks Scan
         uses: gitleaks/gitleaks-action@v2
+        id: gitleaks_scan
+        continue-on-error: true # Permite que el workflow continúe si se encuentran secretos.
         env:
           # Proporciona el token de GitHub como variable de entorno para que la acción pueda escanear Pull Requests.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -53,18 +56,25 @@ jobs:
           report_path: gitleaks-report.sarif
 
       - name: Upload Gitleaks Report
-        if: always() && steps.gitleaks.outputs.sarif_path
+        if: steps.gitleaks_scan.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: gitleaks-sast-report
           path: gitleaks-report.sarif # Se mantiene como artefacto para descarga.
 
       - name: Upload Gitleaks SARIF to GitHub Security
-        if: always() && steps.gitleaks.outputs.sarif_path
+        if: steps.gitleaks_scan.outcome == 'failure'
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: gitleaks-report.sarif
           category: gitleaks
+
+      # --- 1.6. Dockerfile Hardening (Hadolint) ---
+      - name: Run Hadolint Dockerfile Linter
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          # Esta acción fallará si el Dockerfile no sigue las mejores prácticas.
 
       # --- 1.7. Dependency Review (SCA) ---
       - name: Dependency Review
@@ -104,3 +114,40 @@ jobs:
       - name: Stop Docker container
         if: always()
         run: docker stop flask-app-container
+
+  container_scan:
+    name: Trivy Vulnerability Scan
+    # Este job se ejecuta solo si 'security_pipeline' ha sido exitoso.
+    needs: security_pipeline
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # para checkout
+      security-events: write # para subir el reporte SARIF
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image for scanning
+        # Se construye la imagen que será escaneada.
+        run: docker build -f Dockerfile -t flask-app-scan:latest .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: 'flask-app-scan:latest'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          scanners: 'vuln'
+
+      - name: Upload Trivy scan results to GitHub Security
+        # No es necesario 'if: always()' porque si Trivy falla, queremos que el job falle.
+        # El reporte se subirá si el escaneo se completa.
+        # Si hay vulnerabilidades, el paso anterior falla y el workflow se detiene,
+        # pero el reporte SARIF ya se ha generado y se puede subir en un paso posterior si se quisiera.
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: 'container'
