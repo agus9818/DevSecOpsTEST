@@ -53,12 +53,14 @@ jobs:
           report_path: gitleaks-report.sarif
 
       - name: Upload Gitleaks Report
+        if: always() && steps.gitleaks.outputs.sarif_path
         uses: actions/upload-artifact@v4
         with:
           name: gitleaks-sast-report
           path: gitleaks-report.sarif # Se mantiene como artefacto para descarga.
 
       - name: Upload Gitleaks SARIF to GitHub Security
+        if: always() && steps.gitleaks.outputs.sarif_path
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: gitleaks-report.sarif
