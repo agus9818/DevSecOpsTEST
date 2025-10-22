@@ -18,6 +18,7 @@ jobs:
     steps:
       - name: Download SAST artifacts
         uses: actions/github-script@v7
+        id: issue_body_generator
         with:
           script: |
             const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
@@ -25,25 +26,27 @@ jobs:
                repo: context.repo.repo,
                run_id: ${{ github.event.workflow_run.id }},
             });
+
             const banditReport = artifacts.data.artifacts.find((artifact) => artifact.name === "bandit-sast-report");
             const gitleaksReport = artifacts.data.artifacts.find((artifact) => artifact.name === "gitleaks-sast-report");
 
-            if (banditReport || gitleaksReport) {
-              const { data } = await github.rest.actions.downloadArtifact({
-                 owner: context.repo.owner,
-                 repo: context.repo.repo,
-                 artifact_id: (banditReport || gitleaksReport).id,
-                 archive_format: 'zip',
-              });
-              const fs = require('fs');
-              fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/sast-reports.zip`, Buffer.from(data));
+            let issueBody = "Se detectaron problemas de seguridad durante el escaneo SAST.\n\n";
+
+            if (banditReport) {
+              issueBody += "- **Bandit:** Se encontraron posibles vulnerabilidades de seguridad en el código. Revisa el reporte `bandit-sast-report` en los artefactos del workflow.\n";
             }
+            if (gitleaksReport) {
+              issueBody += "- **Gitleaks:** Se detectaron secretos expuestos en el código. Revisa el reporte `gitleaks-sast-report` en los artefactos del workflow.\n";
+            }
+
+            return issueBody;
 
       - name: Create GitHub Issue
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            const issueContent = `${{ steps.issue_body_generator.outputs.result }}`;
             const prNumber = ${{ github.event.workflow_run.pull_requests[0].number }};
             const prUrl = `${{ github.server_url }}/${{ github.repository }}/pull/${prNumber}`;
             const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}`;
@@ -52,6 +55,6 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: `🚨 Alerta de Seguridad en PR #${prNumber}: Escaneo SAST fallido`,
-              body: `Se detectaron problemas de seguridad durante el escaneo de **Bandit** o **Gitleaks**.\n\n- **Pull Request:** ${prUrl}\n- **Ejecución del Workflow:** ${runUrl}\n\nPor favor, revisa los artefactos y los logs del workflow para obtener más detalles y solucionar los problemas antes de fusionar.`,
+              body: `${issueContent}\n- **Pull Request:** ${prUrl}\n- **Ejecución del Workflow:** ${runUrl}\n\nPor favor, revisa los artefactos y los logs del workflow para obtener más detalles y solucionar los problemas antes de fusionar.`,
               labels: ['security', 'bug']
             });
