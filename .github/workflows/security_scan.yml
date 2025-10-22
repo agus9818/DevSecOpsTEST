@@ -10,7 +10,8 @@ jobs:
     permissions:
       issues: write    # Permiso para que la acción de ZAP pueda crear issues.
       contents: read   # Permiso para que la acción de checkout pueda leer el código.
-      pull-requests: read # Permiso para que Gitleaks pueda leer los commits del PR.
+      pull-requests: read # Permiso para que Gitleaks y Dependency Review puedan leer el PR.
+      security-events: write # Permiso para subir los reportes SARIF a las alertas de seguridad.
 
     steps:
       - name: Checkout Code
@@ -29,6 +30,7 @@ jobs:
         run: pip install bandit
 
       - name: Run Bandit Scan
+        # Se añade `|| true` para que el paso no falle si Bandit encuentra vulnerabilidades (exit code 1).
         run: bandit -r . -x ./venv -o bandit_report.json -f json || true
 
       - name: Upload Bandit Report
@@ -51,10 +53,23 @@ jobs:
           report_path: gitleaks-report.sarif
 
       - name: Upload Gitleaks Report
+        if: always() && steps.gitleaks.outputs.sarif_path
         uses: actions/upload-artifact@v4
         with:
           name: gitleaks-sast-report
-          path: gitleaks-report.sarif
+          path: gitleaks-report.sarif # Se mantiene como artefacto para descarga.
+
+      - name: Upload Gitleaks SARIF to GitHub Security
+        if: always() && steps.gitleaks.outputs.sarif_path
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: gitleaks-report.sarif
+          category: gitleaks
+
+      # --- 1.7. Dependency Review (SCA) ---
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        # Esta acción fallará si el PR introduce una dependencia con una vulnerabilidad conocida.
 
       # --- 2. DAST Scan (ZAP) ---
       - name: Build Docker image
@@ -73,9 +88,9 @@ jobs:
         uses: zaproxy/action-baseline@v0.14.0
         with:
           target: 'http://localhost:5000'
-          # Opcional: Para que el pipeline no falle con advertencias (WARN).
-          # Cambia el nivel mínimo de alerta que causa un fallo a 'High'.
-          cmd_options: '-l FAIL'
+          # Para que el pipeline falle en alertas de nivel 'High' o 'Critical' (comportamiento por defecto).
+          # Si deseas un nivel diferente, usa 'fail_action_on_alert: 'Critical'' por ejemplo.
+          # La opción '-l FAIL' en cmd_options no es la forma correcta de controlar el fallo de la acción.
 
       - name: Upload ZAP DAST Report
         if: always() # Asegura que el reporte se suba incluso si el escaneo falla

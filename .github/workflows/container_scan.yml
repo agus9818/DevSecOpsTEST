@@ -8,6 +8,11 @@ jobs:
   container_scan:
     name: Trivy Vulnerability Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read # para checkout
+      actions: read # para que upload-sarif pueda leer metadatos del workflow
+      security-events: write # para subir el reporte SARIF
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -17,23 +22,17 @@ jobs:
         # Usamos -f Dockerfile para asegurar que se usa el archivo correcto.
         run: docker build -f Dockerfile -t flask-app-scan:latest .
 
-      - name: Install Trivy
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update
-          sudo apt-get install -y trivy
-
       - name: Run Trivy vulnerability scanner
-        run: |
-          # 1. Muestra los resultados en una tabla para una fácil lectura en los logs.
-          # Se usa el flag moderno '--scanners' para especificar qué analizar y se elimina el flag obsoleto.
-          trivy image --scanners vuln --format table --ignore-unfixed --severity CRITICAL,HIGH flask-app-scan:latest
-          # 2. Genera el reporte en formato SARIF para la integración con GitHub y como artefacto.
-          # Aquí sí se usa --exit-code 1 para que el pipeline falle si se encuentran vulnerabilidades.
-          trivy image --scanners vuln --format sarif --output trivy-results.sarif --ignore-unfixed --severity CRITICAL,HIGH --exit-code 1 flask-app-scan:latest
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: 'flask-app-scan:latest'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          scanners: 'vuln'
+          # La acción fallará automáticamente si encuentra vulnerabilidades según la severidad.
+          # También mostrará una tabla en los logs por defecto.
 
       - name: Upload Trivy scan results
         if: always() # Sube el reporte incluso si el paso anterior falla.
@@ -41,3 +40,10 @@ jobs:
         with:
           name: trivy-scan-report
           path: trivy-results.sarif
+
+      - name: Upload Trivy scan results to GitHub Security
+        if: always() # Sube el reporte incluso si el paso anterior falla.
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: 'container'
