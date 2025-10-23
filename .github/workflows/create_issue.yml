@@ -18,7 +18,7 @@ jobs:
     steps:
       - name: Download SAST artifacts
         uses: actions/github-script@v7
-        id: issue_body_generator
+        id: issue_details_generator
         with:
           script: |
             const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
@@ -26,27 +26,37 @@ jobs:
                repo: context.repo.repo,
                run_id: ${{ github.event.workflow_run.id }},
             });
-
+            
             const banditReport = artifacts.data.artifacts.find((artifact) => artifact.name === "bandit-sast-report");
             const gitleaksReport = artifacts.data.artifacts.find((artifact) => artifact.name === "gitleaks-sast-report");
+            const zapReport = artifacts.data.artifacts.find((artifact) => artifact.name === "zap-dast-report");
 
-            let issueBody = "Se detectaron problemas de seguridad durante el escaneo SAST.\n\n";
+            let issueTitle = `🚨 Alerta de Seguridad en PR #${{ github.event.workflow_run.pull_requests[0].number }}`;
+            let issueBody = "Se detectaron problemas de seguridad en el pipeline.\n\n";
 
             if (banditReport) {
-              issueBody += "- **Bandit:** Se encontraron posibles vulnerabilidades de seguridad en el código. Revisa el reporte `bandit-sast-report` en los artefactos del workflow.\n";
+              issueBody += "- **SAST (Bandit):** Se encontraron posibles vulnerabilidades en el código. Revisa el reporte `bandit-sast-report`.\n";
             }
             if (gitleaksReport) {
-              issueBody += "- **Gitleaks:** Se detectaron secretos expuestos en el código. Revisa el reporte `gitleaks-sast-report` en los artefactos del workflow.\n";
+              issueBody += "- **SAST (Gitleaks):** Se detectaron secretos expuestos. Revisa el reporte `gitleaks-sast-report`.\n";
+            }
+            if (zapReport) {
+              issueBody += "- **DAST (ZAP):** Se encontraron vulnerabilidades en la aplicación en ejecución. Revisa el reporte `zap-dast-report`.\n";
             }
 
-            return issueBody;
+            // Si no se encontraron artefactos específicos, se asume un fallo general (ej. Dependency Review)
+            if (!banditReport && !gitleaksReport && !zapReport) {
+              issueBody += "El pipeline falló, posiblemente debido a una dependencia vulnerable (Dependency Review) o un problema de configuración. Por favor, revisa los logs.\n";
+            }
+
+            return { issueTitle, issueBody };
 
       - name: Create GitHub Issue
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const issueContent = `${{ steps.issue_body_generator.outputs.result }}`;
+            const issueDetails = JSON.parse('${{ steps.issue_details_generator.outputs.result }}');
             const prNumber = ${{ github.event.workflow_run.pull_requests[0].number }};
             const prUrl = `${{ github.server_url }}/${{ github.repository }}/pull/${prNumber}`;
             const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}`;
@@ -54,8 +64,8 @@ jobs:
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `🚨 Alerta de Seguridad en PR #${prNumber}: Escaneo SAST fallido`,
-              body: `${issueContent}\n- **Pull Request:** ${prUrl}\n- **Ejecución del Workflow:** ${runUrl}\n\nPor favor, revisa los artefactos y los logs del workflow para obtener más detalles y solucionar los problemas antes de fusionar.`,
+              title: issueDetails.issueTitle,
+              body: `${issueDetails.issueBody}\n- **Pull Request:** ${prUrl}\n- **Ejecución del Workflow:** ${runUrl}\n\nPor favor, revisa los artefactos y los logs del workflow para obtener más detalles y solucionar los problemas antes de fusionar.`,
               labels: ['security', 'bug'],
               assignees: ['${{ github.event.workflow_run.actor.login }}']
             });
