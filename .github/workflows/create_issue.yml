@@ -1,0 +1,75 @@
+name: Create Security Issue
+
+on:
+  workflow_run:
+    workflows: ["DevSecOps - Security Pipeline on PR"]
+    types:
+      - completed
+
+jobs:
+  create_issue_on_failure:
+    runs-on: ubuntu-latest
+    # El job se ejecuta solo si el workflow anterior falló y fue en un PR.
+    if: github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event == 'pull_request'
+    permissions:
+      issues: write # Permiso para crear issues.
+      contents: read # Permiso para leer el contenido del repositorio.
+
+    steps:
+      - name: Download SAST artifacts
+        uses: actions/github-script@v7
+        id: issue_details_generator
+        with:
+          script: |
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               run_id: ${{ github.event.workflow_run.id }},
+            });
+            
+            const banditReport = artifacts.data.artifacts.find((artifact) => artifact.name === "bandit-sast-report");
+            const gitleaksReport = artifacts.data.artifacts.find((artifact) => artifact.name === "gitleaks-sast-report");
+            const zapReport = artifacts.data.artifacts.find((artifact) => artifact.name === "zap-dast-report");
+            const trivyReport = artifacts.data.artifacts.find((artifact) => artifact.name === "trivy-scan-report"); // Asumiendo que subes el reporte de Trivy
+
+            let issueTitle = `🚨 Alerta de Seguridad en PR #${{ github.event.workflow_run.pull_requests[0].number }}`;
+            let issueBody = "Se detectaron problemas de seguridad en el pipeline.\n\n";
+
+            if (banditReport) {
+              issueBody += "- **SAST (Bandit):** Se encontraron posibles vulnerabilidades en el código. Revisa el reporte `bandit-sast-report`.\n";
+            }
+            if (gitleaksReport) {
+              issueBody += "- **SAST (Gitleaks):** Se detectaron secretos expuestos. Revisa el reporte `gitleaks-sast-report`.\n";
+            }
+            if (zapReport) {
+              issueBody += "- **DAST (ZAP):** Se encontraron vulnerabilidades en la aplicación en ejecución. Revisa el reporte `zap-dast-report`.\n";
+            }
+            if (trivyReport) {
+              issueBody += "- **Container (Trivy):** Se encontraron vulnerabilidades en la imagen Docker. Revisa el reporte `trivy-scan-report` y los logs del job 'Trivy Vulnerability Scan'.\n";
+            }
+
+            // Si no se encontraron artefactos específicos, se asume un fallo general (ej. Dependency Review)
+            if (!banditReport && !gitleaksReport && !zapReport && !trivyReport) {
+              issueBody += "El pipeline falló, posiblemente debido a una dependencia vulnerable (Dependency Review) o un problema de configuración. Por favor, revisa los logs.\n";
+            }
+
+            return { issueTitle, issueBody };
+
+      - name: Create GitHub Issue
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issueDetails = JSON.parse('${{ steps.issue_details_generator.outputs.result }}');
+            const prNumber = ${{ github.event.workflow_run.pull_requests[0].number }};
+            const prUrl = `${{ github.server_url }}/${{ github.repository }}/pull/${prNumber}`;
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}`;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: issueDetails.issueTitle,
+              body: `${issueDetails.issueBody}\n- **Pull Request:** ${prUrl}\n- **Ejecución del Workflow:** ${runUrl}\n\nPor favor, revisa los artefactos y los logs del workflow para obtener más detalles y solucionar los problemas antes de fusionar.`,
+              labels: ['security', 'bug'],
+              assignees: ['${{ github.event.workflow_run.actor.login }}']
+            });

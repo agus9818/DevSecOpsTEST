@@ -30,18 +30,27 @@ jobs:
         run: pip install bandit
 
       - name: Run Bandit Scan
-        # Se añade `|| true` para que el paso no falle si Bandit encuentra vulnerabilidades (exit code 1).
-        run: bandit -r . -x ./venv -o bandit_report.json -f json || true
+        id: bandit_scan
+        continue-on-error: true # Permite que el workflow continúe para que los reportes se suban.
+        run: bandit -r . -x ./venv -o bandit-report.sarif -f sarif
 
       - name: Upload Bandit Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4 # Sube el reporte para que el otro workflow pueda usarlo.
         with:
           name: bandit-sast-report
-          path: bandit_report.json
+          path: bandit-report.sarif
+
+      - name: Upload Bandit SARIF to GitHub Security
+        if: steps.bandit_scan.outcome == 'failure'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: bandit-report.sarif
 
       # --- 1.5. SAST Scan (Gitleaks) ---
       - name: Run Gitleaks Scan
         uses: gitleaks/gitleaks-action@v2
+        id: gitleaks_scan
+        continue-on-error: true # Permite que el workflow continúe para que los reportes se suban.
         env:
           # Proporciona el token de GitHub como variable de entorno para que la acción pueda escanear Pull Requests.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -53,18 +62,26 @@ jobs:
           report_path: gitleaks-report.sarif
 
       - name: Upload Gitleaks Report
-        if: always() && steps.gitleaks.outputs.sarif_path
+        if: steps.gitleaks_scan.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: gitleaks-sast-report
           path: gitleaks-report.sarif # Se mantiene como artefacto para descarga.
 
       - name: Upload Gitleaks SARIF to GitHub Security
-        if: always() && steps.gitleaks.outputs.sarif_path
+        if: steps.gitleaks_scan.outcome == 'failure'
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: gitleaks-report.sarif
           category: gitleaks
+
+      # --- 1.6. Dockerfile Hardening (Hadolint) ---
+      - name: Run Hadolint Dockerfile Linter
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          # Esta acción fallará si el Dockerfile no sigue las mejores prácticas.
+          ignore: DL3013 # Ignora la advertencia sobre no fijar versiones en pip, ya que usamos requirements.txt
 
       # --- 1.7. Dependency Review (SCA) ---
       - name: Dependency Review
@@ -86,11 +103,11 @@ jobs:
 
       - name: Run ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.14.0
+        id: zap_scan
+        continue-on-error: true # Permite que el workflow continúe para subir el reporte.
         with:
           target: 'http://localhost:5000'
-          # Para que el pipeline falle en alertas de nivel 'High' o 'Critical' (comportamiento por defecto).
-          # Si deseas un nivel diferente, usa 'fail_action_on_alert: 'Critical'' por ejemplo.
-          # La opción '-l FAIL' en cmd_options no es la forma correcta de controlar el fallo de la acción.
+          report_formats: 'sarif,md' # Genera SARIF para Code Scanning y Markdown para artefactos
 
       - name: Upload ZAP DAST Report
         if: always() # Asegura que el reporte se suba incluso si el escaneo falla
@@ -98,9 +115,71 @@ jobs:
         with:
           name: zap-dast-report
           path: |
-            report_html.html
             report_md.md
+
+      - name: Upload ZAP SARIF to GitHub Security
+        if: steps.zap_scan.outcome == 'failure'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: report_sarif.sarif
 
       - name: Stop Docker container
         if: always()
         run: docker stop flask-app-container
+
+      # --- 3. Fail Job if Any Scan Failed (for Issue Creation) ---
+      - name: Fail Job if SAST or DAST Scans Found Issues
+        if: steps.bandit_scan.outcome == 'failure' || steps.gitleaks_scan.outcome == 'failure' || steps.zap_scan.outcome == 'failure'
+        run: |
+          echo "Uno o más escaneos (Bandit, Gitleaks, ZAP) encontraron problemas. Fallando el job para activar la creación de un issue."
+          exit 1
+
+  container_scan:
+    name: Trivy Vulnerability Scan
+    # Este job se ejecuta en paralelo con 'security_pipeline' para un feedback más rápido.
+    # La dependencia 'needs' ha sido eliminada para permitir la ejecución en paralelo.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # para checkout
+      security-events: write # para subir el reporte SARIF
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image for scanning
+        # Se construye la imagen que será escaneada.
+        run: docker build -f Dockerfile -t flask-app-scan:latest .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: 'flask-app-scan:latest'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          scanners: 'vuln'
+        continue-on-error: true # Permite que el workflow continúe para subir el reporte
+        id: trivy_scan
+
+      - name: Upload Trivy Report as Artifact
+        if: steps.trivy_scan.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-scan-report
+          path: trivy-results.sarif
+
+      - name: Upload Trivy scan results to GitHub Security
+        if: steps.trivy_scan.outcome == 'failure'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: 'container'
+
+      # --- 3. Fail Job if Trivy Scan Failed (for Issue Creation) ---
+      - name: Fail Job if Trivy Found Issues
+        if: steps.trivy_scan.outcome == 'failure'
+        run: |
+          echo "Trivy encontró vulnerabilidades en el contenedor. Fallando el job para activar la creación de un issue."
+          exit 1
