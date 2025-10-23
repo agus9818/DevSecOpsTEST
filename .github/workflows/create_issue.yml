@@ -30,6 +30,7 @@ jobs:
             const banditReport = artifacts.data.artifacts.find((artifact) => artifact.name === "bandit-sast-report");
             const gitleaksReport = artifacts.data.artifacts.find((artifact) => artifact.name === "gitleaks-sast-report");
             const zapReport = artifacts.data.artifacts.find((artifact) => artifact.name === "zap-dast-report");
+            const trivyReport = artifacts.data.artifacts.find((artifact) => artifact.name === "trivy-scan-report"); // Asumiendo que subes el reporte de Trivy
 
             let issueTitle = `🚨 Alerta de Seguridad en PR #${{ github.event.workflow_run.pull_requests[0].number }}`;
             let issueBody = "Se detectaron problemas de seguridad en el pipeline.\n\n";
@@ -43,9 +44,12 @@ jobs:
             if (zapReport) {
               issueBody += "- **DAST (ZAP):** Se encontraron vulnerabilidades en la aplicación en ejecución. Revisa el reporte `zap-dast-report`.\n";
             }
+            if (trivyReport) {
+              issueBody += "- **Container (Trivy):** Se encontraron vulnerabilidades en la imagen Docker. Revisa el reporte `trivy-scan-report` y los logs del job 'Trivy Vulnerability Scan'.\n";
+            }
 
             // Si no se encontraron artefactos específicos, se asume un fallo general (ej. Dependency Review)
-            if (!banditReport && !gitleaksReport && !zapReport) {
+            if (!banditReport && !gitleaksReport && !zapReport && !trivyReport) {
               issueBody += "El pipeline falló, posiblemente debido a una dependencia vulnerable (Dependency Review) o un problema de configuración. Por favor, revisa los logs.\n";
             }
 

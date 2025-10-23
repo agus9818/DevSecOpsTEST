@@ -149,6 +149,15 @@ jobs:
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
           scanners: 'vuln'
+        continue-on-error: true # Permite que el workflow continúe para subir el reporte
+        id: trivy_scan
+
+      - name: Upload Trivy Report as Artifact
+        if: steps.trivy_scan.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-scan-report
+          path: trivy-results.sarif
 
       - name: Upload Trivy scan results to GitHub Security
         # No es necesario 'if: always()' porque si Trivy falla, queremos que el job falle.
