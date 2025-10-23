@@ -77,13 +77,6 @@ jobs:
           # Esta acción fallará si el Dockerfile no sigue las mejores prácticas.
           ignore: DL3013 # Ignora la advertencia sobre no fijar versiones en pip, ya que usamos requirements.txt
 
-      # --- 1.8. Fail Job if SAST Scans Failed (for Issue Creation) ---
-      - name: Fail Job if Bandit or Gitleaks Found Issues
-        if: steps.bandit_scan.outcome == 'failure' || steps.gitleaks_scan.outcome == 'failure'
-        run: |
-          echo "Bandit o Gitleaks encontraron problemas. Fallando el job para activar la creación de un issue."
-          exit 1
-
       # --- 1.7. Dependency Review (SCA) ---
       - name: Dependency Review
         uses: actions/dependency-review-action@v4
@@ -104,11 +97,10 @@ jobs:
 
       - name: Run ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.14.0
+        id: zap_scan
+        continue-on-error: true # Permite que el workflow continúe para subir el reporte.
         with:
           target: 'http://localhost:5000'
-          # Para que el pipeline falle en alertas de nivel 'High' o 'Critical' (comportamiento por defecto).
-          # Si deseas un nivel diferente, usa 'fail_action_on_alert: 'Critical'' por ejemplo.
-          # La opción '-l FAIL' en cmd_options no es la forma correcta de controlar el fallo de la acción.
 
       - name: Upload ZAP DAST Report
         if: always() # Asegura que el reporte se suba incluso si el escaneo falla
@@ -122,6 +114,13 @@ jobs:
       - name: Stop Docker container
         if: always()
         run: docker stop flask-app-container
+
+      # --- 3. Fail Job if Any Scan Failed (for Issue Creation) ---
+      - name: Fail Job if SAST or DAST Scans Found Issues
+        if: steps.bandit_scan.outcome == 'failure' || steps.gitleaks_scan.outcome == 'failure' || steps.zap_scan.outcome == 'failure'
+        run: |
+          echo "Uno o más escaneos (Bandit, Gitleaks, ZAP) encontraron problemas. Fallando el job para activar la creación de un issue."
+          exit 1
 
   container_scan:
     name: Trivy Vulnerability Scan
@@ -168,3 +167,10 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
           category: 'container'
+
+      # --- 3. Fail Job if Trivy Scan Failed (for Issue Creation) ---
+      - name: Fail Job if Trivy Found Issues
+        if: steps.trivy_scan.outcome == 'failure'
+        run: |
+          echo "Trivy encontró vulnerabilidades en el contenedor. Fallando el job para activar la creación de un issue."
+          exit 1
