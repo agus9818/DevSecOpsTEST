@@ -41,10 +41,10 @@ jobs:
           path: bandit-report.sarif
 
       - name: Upload Bandit SARIF to GitHub Security
-        if: steps.bandit_scan.outcome == 'failure'
+        if: always() # Sube el reporte siempre. La acción es inteligente y no subirá nada si no hay resultados.
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: bandit-report.sarif
+          sarif_file: bandit-report.sarif # El archivo debe existir, incluso si está vacío.
 
       # --- 1.5. SAST Scan (Gitleaks) ---
       - name: Run Gitleaks Scan
