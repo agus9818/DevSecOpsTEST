@@ -1,10 +1,11 @@
+"""Microservicio de comentarios para la API."""
 import sqlite3
 from flask import Flask, request, jsonify, g
 from flask_talisman import Talisman, GOOGLE_CSP_POLICY
 import html
 import click
 
-# FUncionalidad de microservicio para manejo de comentarios
+# Funcionalidad de microservicio para manejo de comentarios
 
 # --- Configuración y conexión a DB
 app = Flask(__name__)
@@ -13,10 +14,14 @@ app = Flask(__name__)
 # Se crea una clase middleware para envolver la aplicación. Esto garantiza
 # que nuestras cabeceras se apliquen en el último paso, después de Flask y Talisman.
 class SecurityMiddleware:
+    """Middleware para añadir cabeceras de seguridad personalizadas."""
+
     def __init__(self, app):
+        """Inicializa el middleware."""
         self.app = app
 
     def __call__(self, environ, start_response):
+        """Envuelve la respuesta para modificar las cabeceras."""
         def custom_start_response(status, headers, exc_info=None):
             # Filtra las cabeceras no deseadas y añade las de seguridad.
             # Esto garantiza que nuestros valores sean los finales.
@@ -25,7 +30,7 @@ class SecurityMiddleware:
             headers.append(('Pragma', 'no-cache'))
             headers.append(('Cross-Origin-Opener-Policy', 'same-origin'))
             headers.append(('Cross-Origin-Embedder-Policy', 'require-corp'))
-            
+
             return start_response(status, headers, exc_info)
 
         return self.app(environ, custom_start_response)
@@ -54,6 +59,7 @@ app.wsgi_app = SecurityMiddleware(app.wsgi_app)
 DATABASE = 'database.db'
 
 def get_db():
+    """Abre una nueva conexión a la base de datos si no existe una para el contexto actual."""
 
     db = getattr(g, '_database', None)
     if db is None:
@@ -64,15 +70,16 @@ def get_db():
 
 @app.teardown_appcontext
 def close_connection(exception):
+    """Cierra la conexión a la base deatos al final de la solicitud."""
 
     db = getattr(g, '_database', None)
-    
+
     if db is not None:
         db.close()
 
 @app.cli.command('init-db')
 def init_db():
-    """Limpia los datos existentes y crea nuevas tablas."""
+    """Limpia los datos existentes y crea nuevas tablas en la base de datos."""
     db = get_db()
     cursor = db.cursor()
     cursor.execute('''
@@ -87,6 +94,7 @@ def init_db():
 
 # --- Sanitización de salida (Mitigación de XSS)
 def escape_html(text):
+    """Escapa caracteres especiales de HTML en una cadena de texto."""
 
     if isinstance(text, str):
         return html.escape(text)
@@ -95,11 +103,13 @@ def escape_html(text):
 # --- Endpoint 0: Raíz (GET) - Para satisfacer el health check de ZAP
 @app.route('/', methods=['GET'])
 def index():
+    """Endpoint raíz que indica que la API está activa."""
     return jsonify({"message": "API de comentarios está activa."}), 200
 
 # --- Endpoint para robots.txt - Evita 404 en escaneos
 @app.route('/robots.txt')
 def robots_txt():
+    """Sirve un archivo robots.txt que deniega el acceso a todos los crawlers."""
     # Instruye a todos los crawlers a no indexar el sitio
     response = app.response_class("User-agent: *\nDisallow: /", mimetype="text/plain")
     return response
@@ -107,6 +117,7 @@ def robots_txt():
 # --- Endpoint para sitemap.xml - Evita 404 en escaneos
 @app.route('/sitemap.xml')
 def sitemap_xml():
+    """Sirve un sitemap.xml vacío para evitar errores 404 en escaneos."""
     # Se devuelve un 200 OK para evitar el ciclo de manejo de errores de Flask,
     # que entra en conflicto con los middlewares de seguridad. Esto asegura que
     # ZAP reciba una respuesta con todas las cabeceras correctas.
@@ -115,6 +126,7 @@ def sitemap_xml():
 # --- Endpoint 1: Agregar comentario (POST)
 @app.route('/api/comment', methods=['POST'])
 def add_comment():
+    """Agrega un nuevo comentario a la base de datos."""
 
     if not request.is_json:
         return jsonify({"error": "La solicitud debe ser de tipo application/json"}), 415
@@ -124,10 +136,10 @@ def add_comment():
     data = request.get_json()
     username = data.get('username', 'Anónimo')
     comment = data.get('comment', '')
-    
+
     if not comment:
         return jsonify({'error': 'El comentario no puede estar vacío.'}), 400
-    
+
     db = get_db()
     cursor = db.cursor()
 
@@ -140,10 +152,11 @@ def add_comment():
         return jsonify({'message': 'Comentario agregado correctamente.'}), 201
     except sqlite3.Error:
         return jsonify({'error': 'Error al agregar el comentario.'}), 500
-    
+
 # Endpoint 2: Obtener comentarios (GET)
 @app.route('/api/comments', methods=['GET'])
 def get_comments():
+    """Recupera y devuelve todos los comentarios de forma segura."""
     #Recupera los comentarios de la BD
     # Mitigación de XSS mediante sanitización de salida
 
