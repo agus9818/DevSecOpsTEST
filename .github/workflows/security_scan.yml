@@ -183,3 +183,24 @@ jobs:
         run: |
           echo "Trivy encontró vulnerabilidades en el contenedor. Fallando el job para activar la creación de un issue."
           exit 1
+
+  threat_modeling:
+    name: Threat Modeling (Threagile)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # para checkout
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Threagile for Automated Threat Modeling
+        uses: threagile/threagile-action@v1
+        with:
+          model-file: 'microservicio_model.yaml'
+
+      - name: Upload Threat Model Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: threagile-threat-model-report
+          path: threagile-reports/
